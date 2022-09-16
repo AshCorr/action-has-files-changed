@@ -2,6 +2,10 @@ name: 'Has Files Changed'
 description: 'Check if a PR has changed any files that match a pico pattern'
 author: 'Guardian'
 inputs:
+  token:
+    required: true
+    description: 'Github token'
+    default: ${{ github.token }}
   pattern:
     required: true
     description: 'Pico pattern to match files with'

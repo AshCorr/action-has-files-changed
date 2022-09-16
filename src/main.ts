@@ -52,7 +52,7 @@ async function run(): Promise<void> {
 	// Use GitHub's compare two commits API.
 	// https://developer.github.com/v3/repos/commits/#compare-two-commits
 	const response = await client.rest.repos.compareCommitsWithBasehead({
-		basehead: `${base}..${head}`,
+		basehead: `${base}...${head}`,
 		owner: github.context.repo.owner,
 		repo: github.context.repo.repo,
 	});

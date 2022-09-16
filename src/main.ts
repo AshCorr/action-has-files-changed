@@ -64,10 +64,14 @@ async function run(): Promise<void> {
 		);
 	}
 
-	core.setOutput(
-		'changed',
-		response.data.files?.some((file) => pattern(file.filename)),
+	response.data.files?.forEach((file) =>
+		core.info(`Changed File: ${file.filename}`),
 	);
+
+	const matched = response.data.files?.filter((file) => pattern(file.filename));
+	matched?.forEach((file) => core.info(`Matched: ${file.filename}`));
+
+	core.setOutput('changed', matched !== undefined && matched.length > 0);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Entry point

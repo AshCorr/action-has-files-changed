@@ -42,7 +42,7 @@ const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
 const picomatch_1 = __importDefault(__nccwpck_require__(8569));
 function run() {
-    var _a;
+    var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
         const client = github.getOctokit(core.getInput('token', { required: true }));
         const pattern = (0, picomatch_1.default)(core.getInput('pattern', { required: true }));
@@ -88,7 +88,10 @@ function run() {
             core.setFailed(`The head commit for this ${github.context.eventName} event is not ahead of the base commit. ` +
                 "Please submit an issue on this action's GitHub repo.");
         }
-        core.setOutput('changed', (_a = response.data.files) === null || _a === void 0 ? void 0 : _a.some((file) => pattern(file.filename)));
+        (_a = response.data.files) === null || _a === void 0 ? void 0 : _a.forEach((file) => core.info(`Changed File: ${file.filename}`));
+        const matched = (_b = response.data.files) === null || _b === void 0 ? void 0 : _b.filter((file) => pattern(file.filename));
+        matched === null || matched === void 0 ? void 0 : matched.forEach((file) => core.info(`Matched: ${file.filename}`));
+        core.setOutput('changed', matched !== undefined && matched.length > 0);
     });
 }
 // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Entry point

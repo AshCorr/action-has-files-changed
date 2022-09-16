@@ -14,64 +14,55 @@ async function run(): Promise<void> {
 	const eventName = github.context.eventName;
 
 	// Define the base and head commits to be extracted from the payload.
-	let base: string | undefined;
-	let head: string | undefined;
-	switch (eventName) {
-		case 'pull_request': {
-			const payload: PullRequestEvent = github.context
-				.payload as PullRequestEvent;
+	let filesChanged: string[] = [];
 
-			base = payload.pull_request.base.sha;
-			head = payload.pull_request.head.sha;
-			break;
-		}
-		case 'push': {
-			const payload = github.context.payload as PushEvent;
-			base = payload.before;
-			head = payload.after;
-			break;
-		}
-		default:
-			return core.setFailed(
-				`This action only supports pull requests and pushes, ${github.context.eventName} events are not supported. ` +
-					"Please submit an issue on this action's GitHub repo if you believe this in correct.",
+	if (eventName === 'pull_request') {
+		const payload: PullRequestEvent = github.context
+			.payload as PullRequestEvent;
+
+		const base = payload.pull_request.base.sha;
+		const head = payload.pull_request.head.sha;
+
+		// Use GitHub's compare two commits API.
+		// https://developer.github.com/v3/repos/commits/#compare-two-commits
+		const response = await client.rest.repos.compareCommitsWithBasehead({
+			basehead: `${base}...${head}`,
+			owner: github.context.repo.owner,
+			repo: github.context.repo.repo,
+		});
+		// Ensure that the head commit is ahead of the base commit.
+		if (response.data.status !== 'ahead') {
+			core.setFailed(
+				`The head commit for this ${github.context.eventName} event is not ahead of the base commit. ` +
+					"Please submit an issue on this action's GitHub repo.",
 			);
-	}
+		}
 
-	if (!base || !head) {
+		if (response.data.files) {
+			filesChanged = response.data.files.map((file) => file.filename);
+		}
+	} else if (eventName === 'push') {
+		const payload: PushEvent = github.context.payload as PushEvent;
+
+		core.info(JSON.stringify(payload));
+
+		filesChanged = payload.commits
+			.flatMap((commit) => [commit.added, commit.removed, commit.modified])
+			.flatMap((commit) => commit)
+			.filter((commit) => commit);
+	} else {
 		return core.setFailed(
-			`The base and head commits are missing from the payload for this ${github.context.eventName} event. ` +
-				"Please submit an issue on this action's GitHub repo.",
+			`This action only supports pull requests and pushes, ${github.context.eventName} events are not supported. ` +
+				"Please submit an issue on this action's GitHub repo if you believe this in correct.",
 		);
 	}
 
-	// Log the base and head commits
-	core.info(`Base commit: ${base}`);
-	core.info(`Head commit: ${head}`);
+	filesChanged.forEach((file) => core.info(`Changed File: ${file}`));
 
-	// Use GitHub's compare two commits API.
-	// https://developer.github.com/v3/repos/commits/#compare-two-commits
-	const response = await client.rest.repos.compareCommitsWithBasehead({
-		basehead: `${base}...${head}`,
-		owner: github.context.repo.owner,
-		repo: github.context.repo.repo,
-	});
-	// Ensure that the head commit is ahead of the base commit.
-	if (response.data.status !== 'ahead') {
-		core.setFailed(
-			`The head commit for this ${github.context.eventName} event is not ahead of the base commit. ` +
-				"Please submit an issue on this action's GitHub repo.",
-		);
-	}
+	const matched = filesChanged.filter(pattern);
+	matched.forEach((file) => core.info(`Matched: ${file}`));
 
-	response.data.files?.forEach((file) =>
-		core.info(`Changed File: ${file.filename}`),
-	);
-
-	const matched = response.data.files?.filter((file) => pattern(file.filename));
-	matched?.forEach((file) => core.info(`Matched: ${file.filename}`));
-
-	core.setOutput('changed', matched !== undefined && matched.length > 0);
+	core.setOutput('changed', matched.length > 0);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Entry point

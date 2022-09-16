@@ -1,0 +1,13 @@
+name: 'Has Files Changed'
+description: 'Check if a PR has changed any files that match a pico pattern'
+author: 'Guardian'
+inputs:
+  pattern:
+    required: true
+    description: 'Pico pattern to match files with'
+outputs:
+  changed:
+    description: 'Did any files match the pattern?'
+runs:
+  using: 'node16'
+  main: 'dist/index.js'
